@@ -50,7 +50,7 @@ export default function DashboardPage() {
     };
 
     loadUserProperties();
-  }, [isConnected, getUserProperties]);
+  }, [isConnected, getUserProperties, account]);
 
   const handleRefresh = async () => {
     setLoading(true);

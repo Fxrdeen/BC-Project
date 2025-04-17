@@ -75,12 +75,8 @@ contract RealEstateBuy {
         return (property.name, property.location, property.description, property.imageURI, property.totalCost, property.totalNumberOfTokens, property.pricePerToken, property.isActive);
     }
 
-    function getAllProperties() public view returns (Property[] memory) {
-        Property[] memory properties = new Property[](propertiesList.length);
-        for (uint256 i = 0; i < propertiesList.length; i++) {
-            properties[i] = propertiesList[i];
-        }
-        return properties;
+    function getAllPropertiesCount() public view returns (uint256) {
+        return propertiesList.length;
     }
     
     function getMyTokens(uint256 propertyId) public view returns (uint256) {

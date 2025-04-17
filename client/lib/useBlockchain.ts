@@ -82,15 +82,15 @@ export function useBlockchain() {
 
       try {
         // Get all properties from the contract
-        const allProperties = await contract.getAllProperties();
-        console.log("Raw properties data:", allProperties);
+        const allPropertiesCount = await contract.getAllPropertiesCount();
+        console.log("Raw properties data:", allPropertiesCount);
 
         // Convert and format properties
         const formattedProperties = [];
 
         // Loop through each property and add it to our array if it's valid
-        for (let i = 0; i < allProperties.length; i++) {
-          const prop = allProperties[i];
+        for (let i = 0; i < allPropertiesCount; i++) {
+          const prop = await contract.getPropertyDetails(i);
 
           // Skip any invalid properties (e.g., if they have an empty name)
           if (!prop || !prop.name) {
@@ -100,13 +100,13 @@ export function useBlockchain() {
 
           // Add each valid property to our array
           formattedProperties.push({
-            propertyId: Number(prop.propertyId),
+            propertyId: i,
             name: prop.name,
             location: prop.location,
             description: prop.description,
             imageURI: prop.imageURI,
             totalCost: prop.totalCost,
-            totalNumberOfTokens: Number(prop.totalNumberOfTokens),
+            totalNumberOfTokens: prop.totalNumberOfTokens,
             pricePerToken: prop.pricePerToken,
             isActive: prop.isActive,
           });
@@ -254,13 +254,18 @@ export function useBlockchain() {
 
       // Listen for account changes
       window.ethereum.on("accountsChanged", (accounts: string[]) => {
+        console.log("Account changed to:", accounts[0]);
         if (accounts.length > 0) {
           setAccount(accounts[0]);
           setIsConnected(true);
+
+          // Reset properties and reload with the new account
+          setProperties([]);
           loadProperties();
         } else {
           setAccount(null);
           setIsConnected(false);
+          setProperties([]);
         }
       });
     } else {
@@ -315,21 +320,23 @@ export function useBlockchain() {
 
     try {
       const provider = new ethers.BrowserProvider(window.ethereum);
+      // Get a signer for the current account to ensure msg.sender is correct
+      const signer = await provider.getSigner();
       const contract = new ethers.Contract(
         REAL_ESTATE_CONTRACT_ADDRESS,
         RealEstateBuy.abi,
-        provider
+        signer
       );
 
       // Get all properties
-      const allProperties = await contract.getAllProperties();
-      console.log("All properties:", allProperties);
+      const allPropertiesCount = await contract.getAllPropertiesCount();
+      console.log("All properties:", allPropertiesCount);
       const userProperties: UserProperty[] = [];
 
       // For each property, check if the user has tokens
-      for (let i = 0; i < allProperties.length; i++) {
-        const property = allProperties[i];
-        const propertyId = Number(property.propertyId);
+      for (let i = 0; i < allPropertiesCount; i++) {
+        const property = await contract.getPropertyDetails(i);
+        const propertyId = i;
         try {
           // Call the getMyTokens function from the contract
           const tokenCount = await contract.getMyTokens(propertyId);
