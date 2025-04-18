@@ -23,6 +23,17 @@ export type UserProperty = Property & {
   investmentValue: number;
 };
 
+// Add a type for marketplace sell orders
+export type SellOrder = {
+  orderId: number;
+  propertyId: number;
+  seller: string;
+  tokenAmount: number;
+  pricePerToken: ethers.BigNumberish;
+  isActive: boolean;
+  property?: Property; // Optional property details
+};
+
 export function useBlockchain() {
   const [account, setAccount] = useState<string | null>(null);
   const [isConnected, setIsConnected] = useState(false);
@@ -378,6 +389,343 @@ export function useBlockchain() {
     }
   }, [isConnected, account]);
 
+  // Add sell tokens function
+  const sellTokens = useCallback(
+    async (propertyId: number, tokensToSell: number): Promise<boolean> => {
+      if (!isConnected) {
+        setError("Please connect your wallet first");
+        return false;
+      }
+
+      try {
+        const provider = new ethers.BrowserProvider(window.ethereum);
+        const signer = await provider.getSigner();
+        const contract = new ethers.Contract(
+          REAL_ESTATE_CONTRACT_ADDRESS,
+          RealEstateBuy.abi,
+          signer
+        );
+
+        console.log("Selling tokens with details:", {
+          propertyId,
+          tokensToSell,
+        });
+
+        // Execute the transaction
+        const tx = await contract.sellPropertyTokens(propertyId, tokensToSell);
+
+        console.log("Transaction hash:", tx.hash);
+        const receipt = await tx.wait();
+        console.log("Transaction confirmed:", receipt);
+
+        // Reload properties to get updated token counts
+        await loadProperties();
+
+        return true;
+      } catch (error: any) {
+        console.error("Sell error:", error);
+
+        if (error.reason) {
+          setError(error.reason);
+        } else if (error.message) {
+          setError(error.message);
+        } else {
+          setError("Transaction failed");
+        }
+
+        return false;
+      }
+    },
+    [isConnected, loadProperties]
+  );
+
+  // Create a marketplace sell order
+  const createSellOrder = useCallback(
+    async (
+      propertyId: number,
+      tokenAmount: number,
+      pricePerToken: ethers.BigNumberish
+    ): Promise<boolean> => {
+      if (!isConnected) {
+        setError("Please connect your wallet first");
+        return false;
+      }
+
+      try {
+        const provider = new ethers.BrowserProvider(window.ethereum);
+        const signer = await provider.getSigner();
+        const contract = new ethers.Contract(
+          REAL_ESTATE_CONTRACT_ADDRESS,
+          RealEstateBuy.abi,
+          signer
+        );
+
+        console.log("Creating sell order:", {
+          propertyId,
+          tokenAmount,
+          pricePerToken: pricePerToken.toString(),
+        });
+
+        // Execute the transaction
+        const tx = await contract.createSellOrder(
+          propertyId,
+          tokenAmount,
+          pricePerToken
+        );
+
+        console.log("Transaction hash:", tx.hash);
+        const receipt = await tx.wait();
+        console.log("Transaction confirmed:", receipt);
+
+        // Reload properties to get updated token counts
+        await loadProperties();
+
+        return true;
+      } catch (error: any) {
+        console.error("Create sell order error:", error);
+
+        if (error.reason) {
+          setError(error.reason);
+        } else if (error.message) {
+          setError(error.message);
+        } else {
+          setError("Transaction failed");
+        }
+
+        return false;
+      }
+    },
+    [isConnected, loadProperties]
+  );
+
+  // Cancel a marketplace sell order
+  const cancelSellOrder = useCallback(
+    async (orderId: number): Promise<boolean> => {
+      if (!isConnected) {
+        setError("Please connect your wallet first");
+        return false;
+      }
+
+      try {
+        const provider = new ethers.BrowserProvider(window.ethereum);
+        const signer = await provider.getSigner();
+        const contract = new ethers.Contract(
+          REAL_ESTATE_CONTRACT_ADDRESS,
+          RealEstateBuy.abi,
+          signer
+        );
+
+        console.log("Cancelling sell order:", orderId);
+
+        // Execute the transaction
+        const tx = await contract.cancelSellOrder(orderId);
+
+        console.log("Transaction hash:", tx.hash);
+        const receipt = await tx.wait();
+        console.log("Transaction confirmed:", receipt);
+
+        // Reload properties to get updated token counts
+        await loadProperties();
+
+        return true;
+      } catch (error: any) {
+        console.error("Cancel sell order error:", error);
+
+        if (error.reason) {
+          setError(error.reason);
+        } else if (error.message) {
+          setError(error.message);
+        } else {
+          setError("Transaction failed");
+        }
+
+        return false;
+      }
+    },
+    [isConnected, loadProperties]
+  );
+
+  // Buy tokens from a marketplace sell order
+  const buyFromSellOrder = useCallback(
+    async (
+      orderId: number,
+      totalCost: ethers.BigNumberish
+    ): Promise<boolean> => {
+      if (!isConnected) {
+        setError("Please connect your wallet first");
+        return false;
+      }
+
+      try {
+        const provider = new ethers.BrowserProvider(window.ethereum);
+        const signer = await provider.getSigner();
+        const contract = new ethers.Contract(
+          REAL_ESTATE_CONTRACT_ADDRESS,
+          RealEstateBuy.abi,
+          signer
+        );
+
+        console.log("Buying from sell order:", {
+          orderId,
+          totalCost: totalCost.toString(),
+        });
+
+        // Execute the transaction
+        const tx = await contract.buyFromSellOrder(orderId, {
+          value: totalCost,
+        });
+
+        console.log("Transaction hash:", tx.hash);
+        const receipt = await tx.wait();
+        console.log("Transaction confirmed:", receipt);
+
+        // Reload properties to get updated token counts
+        await loadProperties();
+
+        return true;
+      } catch (error: any) {
+        console.error("Buy from sell order error:", error);
+
+        if (error.reason) {
+          setError(error.reason);
+        } else if (error.message) {
+          setError(error.message);
+        } else {
+          setError("Transaction failed");
+        }
+
+        return false;
+      }
+    },
+    [isConnected, loadProperties]
+  );
+
+  // Get all active marketplace sell orders
+  const getMarketplaceSellOrders = useCallback(async (): Promise<
+    SellOrder[]
+  > => {
+    if (!isConnected) {
+      setError("Please connect your wallet first");
+      return [];
+    }
+
+    try {
+      const provider = new ethers.BrowserProvider(window.ethereum);
+      const contract = new ethers.Contract(
+        REAL_ESTATE_CONTRACT_ADDRESS,
+        RealEstateBuy.abi,
+        provider
+      );
+
+      // Get all active sell orders
+      const orders = await contract.getAllSellOrders();
+      console.log("Raw sell orders:", orders);
+
+      // Format orders and add property details
+      const formattedOrders: SellOrder[] = [];
+
+      for (const order of orders) {
+        try {
+          // Get property details for this order
+          const property = await contract.getPropertyDetails(order.propertyId);
+
+          formattedOrders.push({
+            orderId: Number(order.orderId),
+            propertyId: Number(order.propertyId),
+            seller: order.seller,
+            tokenAmount: Number(order.tokenAmount),
+            pricePerToken: order.pricePerToken,
+            isActive: order.isActive,
+            property: {
+              propertyId: Number(order.propertyId),
+              name: property.name,
+              location: property.location,
+              description: property.description,
+              imageURI: property.imageURI,
+              totalCost: property.totalCost,
+              totalNumberOfTokens: Number(property.totalNumberOfTokens),
+              pricePerToken: property.pricePerToken,
+              isActive: property.isActive,
+            },
+          });
+        } catch (error) {
+          console.error(
+            `Error getting property details for order ${order.orderId}:`,
+            error
+          );
+        }
+      }
+
+      return formattedOrders;
+    } catch (error) {
+      console.error("Error getting marketplace sell orders:", error);
+      setError("Failed to load marketplace listings");
+      return [];
+    }
+  }, [isConnected]);
+
+  // Get my active sell orders
+  const getMySellOrders = useCallback(async (): Promise<SellOrder[]> => {
+    if (!isConnected || !account) {
+      setError("Please connect your wallet first");
+      return [];
+    }
+
+    try {
+      const provider = new ethers.BrowserProvider(window.ethereum);
+      const contract = new ethers.Contract(
+        REAL_ESTATE_CONTRACT_ADDRESS,
+        RealEstateBuy.abi,
+        provider
+      );
+
+      // Get all sell orders created by the current user
+      const orders = await contract.getMySellOrders();
+      console.log("Raw my sell orders:", orders);
+
+      // Format orders and add property details
+      const formattedOrders: SellOrder[] = [];
+
+      for (const order of orders) {
+        try {
+          // Get property details for this order
+          const property = await contract.getPropertyDetails(order.propertyId);
+
+          formattedOrders.push({
+            orderId: Number(order.orderId),
+            propertyId: Number(order.propertyId),
+            seller: order.seller,
+            tokenAmount: Number(order.tokenAmount),
+            pricePerToken: order.pricePerToken,
+            isActive: order.isActive,
+            property: {
+              propertyId: Number(order.propertyId),
+              name: property.name,
+              location: property.location,
+              description: property.description,
+              imageURI: property.imageURI,
+              totalCost: property.totalCost,
+              totalNumberOfTokens: Number(property.totalNumberOfTokens),
+              pricePerToken: property.pricePerToken,
+              isActive: property.isActive,
+            },
+          });
+        } catch (error) {
+          console.error(
+            `Error getting property details for order ${order.orderId}:`,
+            error
+          );
+        }
+      }
+
+      return formattedOrders;
+    } catch (error) {
+      console.error("Error getting my sell orders:", error);
+      setError("Failed to load your marketplace listings");
+      return [];
+    }
+  }, [isConnected, account]);
+
   return {
     account,
     isConnected,
@@ -389,6 +737,12 @@ export function useBlockchain() {
     purchaseTokens,
     getPropertyById,
     getUserProperties,
+    sellTokens,
+    createSellOrder,
+    cancelSellOrder,
+    buyFromSellOrder,
+    getMarketplaceSellOrders,
+    getMySellOrders,
   };
 }
 
